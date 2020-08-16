@@ -12,8 +12,8 @@
 
 #include "base.h"
 
-//extern int geun_func(void);
-//extern void ECSL_timer_init(void);
+extern int geun_func(void);
+extern void ECSL_timer_init(void);
 
 /**
  * driver_init - initialize driver model.
@@ -40,6 +40,6 @@ void __init driver_init(void)
 	container_dev_init();
 	of_core_init();
 
-    //geun_func(); //[SG]
+    geun_func(); //[SG]
     //ECSL_timer_init();
 }
