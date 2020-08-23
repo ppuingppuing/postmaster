@@ -594,7 +594,9 @@ if readelf -a ${DIST_DIR}/vmlinux 2>&1 | grep -q trace_printk_fmt; then
   fi
 fi
 
+
 cd ${PLATFORM_PATH_AND9}
 source build/envsetup.sh
 lunch aosp_blueline-userdebug
 m bootimage -j4
+echo -e "adb reboot bootloader\nfastboot flash boot boot.img\nfastboot reboot\npause" > ${OUT_DIR}/target/product/blueline/flashing_boot.bat

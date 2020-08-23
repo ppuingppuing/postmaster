@@ -21,6 +21,8 @@
  * Call the driver model init functions to initialize their
  * subsystems. Called early from init/main.c.
  */
+
+
 void __init driver_init(void)
 {
 	/* These are the core pieces */
@@ -40,6 +42,4 @@ void __init driver_init(void)
 	container_dev_init();
 	of_core_init();
 
-    //geun_func(); //[SG]
-    //ECSL_timer_init();
 }
