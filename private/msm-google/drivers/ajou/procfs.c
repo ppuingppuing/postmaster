@@ -122,4 +122,30 @@ static ssize_t file_ftrace_read(struct file *flip, char * buff, size_t count, lo
 }
 
 
+#include <linux/smp.h>
+
+static struct proc_dir_entry *file_pmuserenr;
+
+static ssize_t file_pmuserenr_read(struct file *flip, char * buff, size_t count, loff_t *offp);
+
+static const struct file_operations file_pmuserenr_fops = { 
+    .read = file_pmuserenr_read,
+};
+
+int pmuserenr_init(void)
+{
+    file_rw = proc_create("file_pmuserenr", 0660, ajou_dir, &file_pmuserenr_fops);
+	return 0;
+}
+
+module_init(pmuserenr_init);
+
+static ssize_t file_pmuserenr_read(struct file *flip, char * buff, size_t count, loff_t *offp){
+    u64 reg;
+    asm volatile("msr PMUSERENR_EL0, %0"::"r"(1));
+	asm volatile("mrs %0, PMUSERENR_EL0":"=r"(reg));
+	printk("[Ajou] %s : %llu, core: %d", __FUNCTION__, reg, smp_processor_id());
+    return 0;
+}
+
 
