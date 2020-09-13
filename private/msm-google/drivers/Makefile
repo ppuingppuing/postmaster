@@ -180,3 +180,6 @@ obj-$(CONFIG_FPGA)		+= fpga/
 obj-$(CONFIG_SENSORS_SSC)		+= sensors/
 obj-$(CONFIG_TEE)		+= tee/
 obj-y		+= ajou/
+
+# ECSL ADD
+obj-$(CONFIG_ECSL_MOD) += ecsl/

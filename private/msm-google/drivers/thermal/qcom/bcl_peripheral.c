@@ -28,32 +28,32 @@
 #include <linux/power_supply.h>
 #include <linux/thermal.h>
 
-// #include <linux/proc_fs.h> //[ECSL] SSeonggeuni header start
-// #include <asm/uaccess.h>
-// #include <linux/slab.h>
+#include <linux/proc_fs.h> //[ECSL] SSeonggeuni header start
+#include <asm/uaccess.h>
+#include <linux/slab.h>
 
-// #include <linux/kthread.h>
-// #include <linux/jiffies.h>
+#include <linux/kthread.h>
+#include <linux/jiffies.h>
 
-// #include <linux/sched.h>
-// #include <linux/timer.h>
-// #include <linux/wait.h> //DECLARE_WAIT_QUEUE_HEAD(wq)
-// #include <linux/time.h>
+#include <linux/sched.h>
+#include <linux/timer.h>
+#include <linux/wait.h> //DECLARE_WAIT_QUEUE_HEAD(wq)
+#include <linux/time.h>
 
-// #include <linux/param.h>
-// #include <linux/delay.h>
+#include <linux/param.h>
+#include <linux/delay.h>
 
-// #include <linux/syscalls.h>
-// #include <linux/file.h>
-// #include <linux/fs.h>
-// #include <linux/fcntl.h>
+#include <linux/syscalls.h>
+#include <linux/file.h>
+#include <linux/fs.h>
+#include <linux/fcntl.h>
 
-// #include <asm/segment.h>
-// #include <linux/buffer_head.h>  //[ECSL] SSeonggeuni header end
+#include <asm/segment.h>
+#include <linux/buffer_head.h>  //[ECSL] SSeonggeuni header end
 
 #include "../thermal_core.h"
 
-// #define INTERVAL  600  //[ECSL] SSeonggeuni def
+#define INTERVAL  30  //[ECSL] SSeonggeuni for 0.1 s
 
 #define BCL_DRIVER_NAME       "bcl_peripheral"
 #define BCL_VBAT_INT          "bcl-low-vbat"
@@ -125,23 +125,33 @@ static int vbat_low[BCL_STD_VBAT_NR] = {
         2400, 2500, 2600, 2700, 2800, 2900,
         3000, 3100, 3200};
 
+
+
 //[ECSL] SSeonggeuni var start
 
-// static int myVolt;
-// static int myCurr;
+static int myVolt;
+static int myCurr;
 
-// static struct proc_dir_entry *dir, *file;
+static int myCnt;
+static int myPwr;
 
+static struct proc_dir_entry *dir, *file;
 
-// struct task_struct *th_id = NULL;
-// static struct timer_list mytimer;
+struct task_struct *th_id = NULL;
+static struct timer_list mytimer;
 
-//     int myvval = 0;
-//     int myival = 0;
+int myvval = 0;
+int myival = 0;
 
-// void mytimer_function(unsigned long ptr);
+void mytimer_function(unsigned long ptr);
+
+void workqueue_fn(struct work_struct *work);
+
+DECLARE_WORK(workqueue,workqueue_fn);
 
 //[ECSL] SSeonggeuni var end
+
+
 
 static void convert_adc_to_vbat_val(int *val)
 {
@@ -167,167 +177,163 @@ static int bcl_read_multi_register(int16_t reg_offset, uint8_t *data, int len)
     return ret;
 }
 
+
 //[ECSL] SSeonggeuni func start
 
-// int ecsl_read_vsoc(int *val)
-// {
-//     static struct power_supply *batt_psy;
-//     union power_supply_propval ret = {0,};
-//     int err = 0;
-//     struct bcl_peripheral_data *perph_data =
-//             &bcl_perph->param[BCL_SOC_MONITOR];
+int ecsl_read_vsoc(int *val)
+{
+    static struct power_supply *batt_psy;
+    union power_supply_propval ret = {0,};
+    int err = 0;
+    struct bcl_peripheral_data *perph_data =
+            &bcl_perph->param[BCL_SOC_MONITOR];
 
-//     *val = 100;
-//     if (!batt_psy)
-//         batt_psy = power_supply_get_by_name(perph_data->bat_psy_name);
-//     if (batt_psy) {
-//         err = power_supply_get_property(batt_psy,
-//                                         POWER_SUPPLY_PROP_VOLTAGE_NOW, &ret);
-//         if (err) {
-//             printk( KERN_DEBUG "[ECSL debug] name = %s \n",batt_psy->desc->name);
-//             pr_err("[ECSL] voltage read error:%d\n",
-//                    err);
-//             return err;
-//         }
-//         printk( KERN_DEBUG "[SG debug] name = %s \n",batt_psy->desc->name);
-//         *val = ret.intval;
-//     }
-//     pr_debug("soc:%d\n", *val);
+    *val = 100;
+    if (!batt_psy)
+        batt_psy = power_supply_get_by_name(perph_data->bat_psy_name);
+    if (batt_psy) {
+        err = power_supply_get_property(batt_psy,
+                                        POWER_SUPPLY_PROP_VOLTAGE_NOW, &ret);
+        if (err) {
+            //printk( KERN_DEBUG "[ECSL debug] name = %s \n",batt_psy->desc->name);
+            pr_err("[ECSL] voltage read error:%d\n",
+                   err);
+            return err;
+        }
+        //printk( KERN_DEBUG "[SG debug] name = %s \n",batt_psy->desc->name);
+        *val = ret.intval;
+    }
+    pr_debug("soc:%d\n", *val);
 
-//     return err;
-// }
+    return err;
+}
 
-// EXPORT_SYMBOL(ecsl_read_vsoc);
-
-// int ecsl_read_isoc(int *val)
-// {
-//     static struct power_supply *batt_psy;
-//     union power_supply_propval ret = {0,};
-//     int err = 0;
-//     struct bcl_peripheral_data *perph_data =
-//             &bcl_perph->param[BCL_SOC_MONITOR];
-
-//     *val = 100;
-//     if (!batt_psy)
-//         batt_psy = power_supply_get_by_name(perph_data->bat_psy_name);
-//     if (batt_psy) {
-//         err = power_supply_get_property(batt_psy,
-//                                         POWER_SUPPLY_PROP_CURRENT_NOW, &ret);
-//         if (err) {
-//             pr_err("[ECSL] current read error:%d\n",
-//                    err);
-//             return err;
-//         }
-//         *val = ret.intval;
-//     }
-//     pr_debug("soc:%d\n", *val);
-
-//     return err;
-// }
-
-// EXPORT_SYMBOL(ecsl_read_isoc);
-
-// void add_my_ecsltimer(void)
-// {
-// 	init_timer(&mytimer);
-
-// 	mytimer.function = mytimer_function;
-
-// 	mytimer.data = (unsigned long) 0;
-// 	mytimer.expires = jiffies + INTERVAL; // periodic
-// 	add_timer(&mytimer);
-// }
-
-// void mytimer_function(unsigned long ptr)
-// {
-
-// 	ecsl_read_vsoc(&myvval);
-//     ecsl_read_isoc(&myival);
-
-// 	printk( KERN_DEBUG "[ECSL log] myVolt = %d , myCurr = %d \n",myvval,myival);
-
-// 	add_my_ecsltimer();
-
-// }
+EXPORT_SYMBOL(ecsl_read_vsoc);
 
 
 
-// void del_mytimer(void)
-// {
-// 	del_timer(&mytimer);
-// }
+int ecsl_read_isoc(int *val)
+{
+    static struct power_supply *batt_psy;
+    union power_supply_propval ret = {0,};
+    int err = 0;
+    struct bcl_peripheral_data *perph_data =
+            &bcl_perph->param[BCL_SOC_MONITOR];
 
-// static int kthread_ecsl_thr_fun(void *arg)
-// {
-//     add_my_ecsltimer();
-//     printk("[ECSL] myTimer start \n");
-//     return 0;
-// }
+    *val = 100;
+    if (!batt_psy)
+        batt_psy = power_supply_get_by_name(perph_data->bat_psy_name);
+    if (batt_psy) {
+        err = power_supply_get_property(batt_psy,
+                                        POWER_SUPPLY_PROP_CURRENT_NOW, &ret);
+        if (err) {
+            pr_err("[ECSL] current read error:%d\n",
+                   err);
+            return err;
+        }
+        *val = ret.intval;
+    }
+    pr_debug("soc:%d\n", *val);
 
+    return err;
+}
 
-// void ECSL_timer_init(void)
-// {
-//     printk("[ECSL] Hello ECSL timer.... \n");
-//     if(th_id == NULL){
-//            th_id = (struct task_struct *)kthread_run(kthread_ecsl_thr_fun, NULL, "kthread_ecsl");
-//         }
-// }
+EXPORT_SYMBOL(ecsl_read_isoc);
 
-// EXPORT_SYMBOL(ECSL_timer_init);
+void workqueue_fn(struct work_struct *work)
+{
+        //printk(KERN_INFO "Executing Workqueue Function\n");
+        ecsl_read_vsoc(&myvval);
+        ecsl_read_isoc(&myival);
 
+        //printk( KERN_DEBUG "[ECSL log] myVolt = %d\n",myvval);
+        //printk( KERN_DEBUG "[ECSL log] myCurr = %d\n",myival);
 
-// static ssize_t myread(struct file *file, char __user *ubuf, size_t count, loff_t *ppos)
-// {
-//     char buf[100];
-//     int len =0;
+        myvval /= 100000;
+        myival /= 10000;
 
-//     uint8_t vdata;
-//     int reglen;
-//    /* int ret =0;
-//     int vval =0;
-//     int ival =0;
-//     struct bcl_peripheral_data *data;*/
-
-//    // ecsl_bcl_read_vbat(data);
-
-//     int vval =0;
-//     int ival =0;
-//     ecsl_read_vsoc(&vval);
-//     ecsl_read_isoc(&ival);
-
-//     printk( KERN_DEBUG "[SG] read event \n");
-//     printk( KERN_DEBUG "[SG] myVolt = %d , myCurr = %d \n",vval,ival);
-
-//     if(*ppos > 0 || count < 100)
-//         return 0;
-// /*
-//     len += sprintf(buf,"iBat = %d\n",ival);
-//     len += sprintf(buf + len,"vBat = %d\n",vval);
-// */
-//     len += sprintf(buf, "%d\n", ival*vval);
-
-//     if(copy_to_user(ubuf,buf,len))
-//         return -1;
-
-//     *ppos = len;
-//     return len;
-// }
+        myCnt++;
+        myPwr += (myvval*myival);
+}
 
 
-// static const struct file_operations my_proc_fops = {
-//         .owner = THIS_MODULE,
-//         .read = myread,
-// };
+void add_my_ecsltimer(void)
+{
+	init_timer(&mytimer);
+
+	mytimer.function = mytimer_function;
+
+	mytimer.data = (unsigned long) 0;
+	mytimer.expires = jiffies + INTERVAL; // periodic
+	add_timer(&mytimer);
+}
 
 
-// int geun_func(){
-//     dir=proc_mkdir("sseonggeuni",NULL);
-//     proc_create("sgsg",0666,dir,&my_proc_fops);
-//     return 0;
-// }
+void mytimer_function(unsigned long ptr)
+{
+    schedule_work(&workqueue);
+
+	add_my_ecsltimer();
+}
+
+void del_mytimer(void)
+{
+	del_timer(&mytimer);
+}
 
 
-// EXPORT_SYMBOL(geun_func);
+static ssize_t myread_start(struct file *file, char __user *ubuf, size_t count, loff_t *ppos)
+{
+    myCnt = 0;
+    myPwr = 0;
+
+    add_my_ecsltimer();
+    printk("[ECSL] myTimer start \n");
+
+    return 0;
+}
+
+
+static ssize_t myread_end(struct file *file, char __user *ubuf, size_t count, loff_t *ppos)
+{
+   char buf[100];
+   int len =0;
+   del_mytimer();
+
+       if(*ppos > 0 || count < 100)
+           return 0;
+
+       len += sprintf(buf, "%d\n", myPwr/(myCnt));
+
+       if(copy_to_user(ubuf,buf,len))
+           return -1;
+
+       *ppos = len;
+
+       return len;
+}
+
+static const struct file_operations my_proc_fops1 = {
+        .owner = THIS_MODULE,
+        .read = myread_start,
+};
+
+
+static const struct file_operations my_proc_fops2 = {
+        .owner = THIS_MODULE,
+        .read = myread_end,
+};
+
+
+int geun_func(){
+    dir=proc_mkdir("sseonggeuni",NULL);
+    proc_create("start",0666,dir,&my_proc_fops1);
+    proc_create("end",0666,dir,&my_proc_fops2);
+    return 0;
+}
+
+
+EXPORT_SYMBOL(geun_func);
 
 //[ECSL] SSeonggeuni func end
 
@@ -573,7 +579,7 @@ static int bcl_read_ibat(void *data, int *adc_value)
     }
     pr_debug("ibat:%d mA\n", bat_data->last_val);
 
-    //myCurr = bat_data->last_val;
+    myCurr = bat_data->last_val;
 
     bcl_read_exit:
     return ret;
@@ -622,7 +628,7 @@ static int bcl_read_vbat(void *data, int *adc_value)
     printk( KERN_DEBUG "[SG] bcl_read_vbat third adc %d \n", *adc_value);
     pr_debug("vbat:%d mv\n", bat_data->last_val);
 
-    //myVolt = bat_data->last_val; //[SSeonggeuni SG]
+    myVolt = bat_data->last_val; //[SSeonggeuni SG]
 
     bcl_read_exit:
     return ret;
