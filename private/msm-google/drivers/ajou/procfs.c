@@ -140,11 +140,17 @@ int pmuserenr_init(void)
 
 module_init(pmuserenr_init);
 
-static ssize_t file_pmuserenr_read(struct file *flip, char * buff, size_t count, loff_t *offp){
+static void pmuserenr_wr(void *arg)
+{
     u64 reg;
-    asm volatile("msr PMUSERENR_EL0, %0"::"r"(1));
-	asm volatile("mrs %0, PMUSERENR_EL0":"=r"(reg));
-	printk("[Ajou] %s : %llu, core: %d", __FUNCTION__, reg, smp_processor_id());
+    asm volatile("msr PMUSERENR_EL0, %0"::"r"((u64)0xF));
+    asm volatile("mrs %0, PMUSERENR_EL0":"=r"(reg));
+    printk("[Ajou] %s : 0x%llx, core: %d", __FUNCTION__, reg, smp_processor_id());
+    return;
+}
+
+static ssize_t file_pmuserenr_read(struct file *flip, char * buff, size_t count, loff_t *offp){
+    on_each_cpu_mask(cpu_online_mask, pmuserenr_wr, (void *)NULL, 1);
     return 0;
 }
 

@@ -143,6 +143,8 @@ static struct timer_list mytimer;
 int myvval = 0;
 int myival = 0;
 
+int myTimerFlag = 0;
+
 void mytimer_function(unsigned long ptr);
 
 void workqueue_fn(struct work_struct *work);
@@ -287,8 +289,15 @@ static ssize_t myread_start(struct file *file, char __user *ubuf, size_t count, 
     myCnt = 0;
     myPwr = 0;
 
-    add_my_ecsltimer();
-    printk("[ECSL] myTimer start \n");
+    if(myTimerFlag==0) {
+      add_my_ecsltimer();
+      printk("[ECSL] myTimer start \n");
+      myTimerFlag = 1;
+    } else {
+       del_mytimer();
+           add_my_ecsltimer();
+           myTimerFlag = 1;
+    }
 
     return 0;
 }
@@ -298,7 +307,9 @@ static ssize_t myread_end(struct file *file, char __user *ubuf, size_t count, lo
 {
    char buf[100];
    int len =0;
+              myTimerFlag = 0;
    del_mytimer();
+           printk("[ECSL] myTimer start \n");
 
        if(*ppos > 0 || count < 100)
            return 0;
